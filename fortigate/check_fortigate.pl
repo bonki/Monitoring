@@ -557,14 +557,16 @@ sub get_vpn_state {
   $return_string .= $perf;
 
   # Check to see if the output string contains either "unkw", "WARNING" or "down", and set an output state accordingly...
-  if($return_string =~/uknw/){
-    $return_state = "UNKNOWN";
-  }
-  if($return_string =~/WARNING/){
-    $return_state = "WARNING";
-  }
-  if($return_string =~/down/){
-    $return_state = "CRITICAL";
+  if ($mode >= 2) {
+    if($return_string =~/uknw/){
+      $return_state = "UNKNOWN";
+    }
+    if($return_string =~/WARNING/){
+      $return_state = "WARNING";
+    }
+    if($return_string =~/down/){
+      $return_state = "CRITICAL";
+    }
   }
   return ($return_state, $return_string);
 } # end vpn state
