@@ -156,6 +156,10 @@ my $oid_net              = ".1.3.6.1.4.1.12356.101.13.2.1.1.5";    # Location of
 my $oid_mem              = ".1.3.6.1.4.1.12356.101.13.2.1.1.4";    # Location of cluster member Mem (%)
 my $oid_ses              = ".1.3.6.1.4.1.12356.101.13.2.1.1.6";    # Location of cluster member Sessions (int)
 
+## FortiGate OIDs ##
+my $oid_fg_disk_used     = ".1.3.6.1.4.1.12356.101.4.1.6.0";       # Location of FortiGate hard disk usage (Mb)
+my $oid_fg_disk_avail    = ".1.3.6.1.4.1.12356.101.4.1.7.0";       # Location of FortiGate  hard disk capacity (Mb)
+
 ## FortiAnalyzer OIDs ##
 my $oid_faz_cpu_used     = ".1.3.6.1.4.1.12356.103.2.1.1.0";       # Location of CPU for FortiAnalyzer (%)
 my $oid_faz_mem_used     = ".1.3.6.1.4.1.12356.103.2.1.2.0";       # Location of Memory used for FortiAnalyzer (kb)
@@ -225,8 +229,8 @@ given ( $curr_serial ) {
    when ( /^(FL|FAZ)/ ) { # FL|FAZ = FORTIANALYZER
       given ( lc($type) ) {
          when ("cpu") { ($return_state, $return_string) = get_health_value($oid_faz_cpu_used, "CPU", "%"); }
-         when ("mem") { ($return_state, $return_string) = get_faz_health_value($oid_faz_mem_used, $oid_faz_mem_avail, "Memory", "%"); }
-         when ("disk") { ($return_state, $return_string) = get_faz_health_value($oid_faz_disk_used, $oid_faz_disk_avail, "Disk", "%"); }
+         when ("mem") { ($return_state, $return_string) = get_health_value_usage($oid_faz_mem_used, $oid_faz_mem_avail, "Memory", "%"); }
+         when ("disk") { ($return_state, $return_string) = get_health_value_usage($oid_faz_disk_used, $oid_faz_disk_avail, "Disk", "%"); }
          default { ($return_state, $return_string) = ('UNKNOWN',"UNKNOWN: This device supports only selected type -T cpu|mem|disk, $curr_device is a FORTIANALYZER (S/N: $curr_serial)"); }
       }
    } when ( /^FE/ ) { # FE = FORTIMAIL
@@ -249,9 +253,16 @@ given ( $curr_serial ) {
       }
    } default { # OTHERS (FG = FORTIGATE...)
       given ( lc($type) ) {
-         when ("cpu") { ($return_state, $return_string) = get_health_value($oid_cpu, "CPU", "%"); }
-         when ("mem") { ($return_state, $return_string) = get_health_value($oid_mem, "Memory", "%"); }
-         when ("net") { ($return_state, $return_string) = get_health_value($oid_net, "Network", ""); }
+         when ("cpu")  { ($return_state, $return_string) = get_health_value($oid_cpu, "CPU", "%"); }
+         when ("mem")  { ($return_state, $return_string) = get_health_value($oid_mem, "Memory", "%"); }
+         when ("disk") {
+                           if (get_snmp_value($session, $oid_fg_disk_avail) > 0) {
+                               ($return_state, $return_string) = get_health_value_usage($oid_fg_disk_used, $oid_fg_disk_avail, "Disk", "%");
+                           } else {
+                               ($return_state, $return_string) = ('OK',"OK: $curr_device (Current device: $curr_serial) Disk is okay: No disk present");
+                           }
+                       }
+         when ("net")  { ($return_state, $return_string) = get_health_value($oid_net, "Network", ""); }
          when ("ses") { ($return_state, $return_string) = get_health_value($oid_ses, "Session", ""); }
          when ("vpn") { ($return_state, $return_string) = get_vpn_state(); }
          when ("wtp") { ($return_state, $return_string) = get_wtp_state("%"); }
@@ -370,7 +381,7 @@ sub get_health_value {
   return ($return_state, $return_string);
 } # end health value
 
-sub get_faz_health_value {
+sub get_health_value_usage {
   my $used_oid = $_[0];
   my $avail_oid = $_[1];
   my $label = $_[2];
@@ -400,7 +411,7 @@ sub get_faz_health_value {
   $return_string = $return_state . ": " . $curr_device . " (Current device: " . $curr_serial .") " . $return_string . $perf;
 
   return ($return_state, $return_string);
-} # end faz health value
+} # end health value usage
 
 sub get_cluster_state {
   my @help_serials; # helper array
